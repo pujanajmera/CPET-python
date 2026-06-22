@@ -266,7 +266,8 @@ def main():
     parser.add_argument("--prm", type=str, help="Path to the .prm parameter file", required=True)
     parser.add_argument("--uind", type=str, help="Path to the .uind induced dipole file", required=True)
     parser.add_argument("--pdb", type=str, help="Path to the .pdb file used for parsing and zeroing point charges", required=True)
-    parser.add_argument("--output", type=str, help="Path to save the output field data", required=True)
+    parser.add_argument("--no-permanent", help="Specify whether permanent dipoles + quadrupoles should be considered", action="store_true")
+    parser.add_argument("--no-induced", help="Specify whether induced dipoles should be considered", action="store_true")
     args = parser.parse_args()
 
     """
@@ -281,7 +282,10 @@ def main():
     induced_dipole_path = args.uind #Includes induced dipoles
     path_to_pdb = args.pdb #Used for parsing and zeroing point charges as well as defining local molecule reference frame, but not for coordinates/charge/dipole/quadrupole values
     field_output_path = os.path.join(options["outputpath"], coordinate_path.split("/")[-1].split(".")[0] + "_efield.dat")
-
+    no_permanent = args.no_permanent
+    no_induced = args.no_induced
+    if no_permanent and not no_induced:
+        ValueError("Can not turn off permanent dipoles/quadrupoles and keep induced dipoles on!")
     """
     Pycpet initialization section, need grid, box dimension info, x indices, and rotation vectors
     """
@@ -308,7 +312,8 @@ def main():
     print(len(r))
     print(r[:5])
     d, t = rotate_dipoles_quadrupoles(r, d, t)
-    d += ind_dips
+    if not no_induced:
+        d += ind_dips
     print(d.shape, t.shape)
     print(d[:5], t[:5])
     x, d, t = rotate_and_translate_to_box_reference(x, d, t, center, global2local_rotmat)
@@ -343,7 +348,9 @@ def main():
         #t will be a 1, 0, 0, -1, 0, 0
         t_flat = np.array([[0.5, 0.0, 0.0, -0.25, 0.0, -0.25]], dtype=np.float32) #Single quadrupole with Qxx=1, Qyy=-1, Qzz=0
         print("Test points overridden")
-
+    if no_permanent:
+        d = np.zeros_like(d)
+        t_flat = np.zeros_like(t_flat)
     time_start = time.time()
     field = compute_field_on_grid_amoeba(local_mesh, x, q, d, t_flat)
     time_end = time.time()
