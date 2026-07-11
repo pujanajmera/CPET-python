@@ -153,57 +153,36 @@ def main():
 
         # Loop to build dictionary of residues
         print("Building residue breakdown dictionary...")
+        previous_resn = None
+        current_key = None
+        duplicate_count = {}
         for i in tqdm(range(len(x))):
             resn = residue_number[i]
-            if resn not in res_breakdown_dict:
+            if resn not in duplicate_count:
+                duplicate_count[resn] = 0
+                current_key = resn
+            else:
+                duplicate_count[resn] += 1
+                current_key = f"{resn}_{duplicate_count[resn]}"
+                
                 """
                 x captures the coordinates of atoms in the residue.
                 count keeps track of the number of atoms in the residue.
                 E_elec and E_nuc are initialized to 0.0, they will be calculated later.
                 """
-                res_breakdown_dict[resn] = {
+            res_breakdown_dict[current_key] = {
                     "E_elec": 0.0,
                     "E_nuc": 0.0,
                     "V_qmmm": 0.0,
                     "count": 0,
                     "x": [],
                     "q": [],
-                }
-                res_breakdown_dict[resn]["x"].append(x[i])
-                res_breakdown_dict[resn]["q"].append(
-                    q[i]
-                )  # Store charge for the residue
-                res_breakdown_dict[resn]["count"] += 1
-            else:
-                # First case, make sure that the previous residue is the same as the current, if it is present in the breakdown. If not, this indicates duplicate residue numbering...
-                if (
-                    resn == residue_number[i - 1].split("_")[0]
-                ):  # Continuing the residue
-                    res_breakdown_dict[resn]["x"].append(x[i])
-                    res_breakdown_dict[resn]["q"].append(q[i])
-                    res_breakdown_dict[resn]["count"] += 1
-                # Second case, if residue number is the same as a previous residue but not the immediate previous one, this indicates duplicate residue numbering in the PDB file
-                else:
-                    # Duplicate residue, modify the dictionary key to include a suffix that depends on number of previous instances
-                    suffix_to_add = len(
-                        [
-                            key
-                            for key in res_breakdown_dict.keys()
-                            if key.split("_")[0] == resn
-                        ]
-                    )
-                    new_resn = f"{resn}_{suffix_to_add}"
-                    res_breakdown_dict[new_resn] = {
-                        "E_elec": 0.0,
-                        "E_nuc": 0.0,
-                        "V_qmmm": 0.0,
-                        "count": 0,
-                        "x": [],
-                        "q": [],
-                    }
-                    res_breakdown_dict[new_resn]["x"].append(x[i])
-                    res_breakdown_dict[new_resn]["q"].append(q[i])
-                    res_breakdown_dict[new_resn]["count"] += 1
+            }
+            res_breakdown_dict[current_key]["x"].append(x[i])
+            res_breakdown_dict[current_key]["q"].append(
+                q[i]
+            )  # Store charge for the residue
+            res_breakdown_dict[current_key]["count"] += 1
 
         # Loop to calculate interaction energies for each residue
         for resn, data in tqdm(res_breakdown_dict.items()):
